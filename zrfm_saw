@@ -30,6 +30,7 @@ FUNCTION zrfm_saw.
 *"     VALUE(I_SPACERS4_KG) TYPE  INT4 OPTIONAL
 *"     VALUE(I_SPACERSP_KG) TYPE  INT4 OPTIONAL
 *"     VALUE(I_TARE_WEIGHT2) TYPE  ZTARE_WEIGHT OPTIONAL
+*"     VALUE(I_ARBPL) TYPE  ARBPL OPTIONAL
 *"  EXPORTING
 *"     VALUE(E_CARD) TYPE  ZCARD_NO
 *"     VALUE(E_AUFNR_NEXT) TYPE  AUFNR
@@ -112,7 +113,7 @@ FUNCTION zrfm_saw.
       spacers4_kg = i_spacers4_kg
       spacersp_kg = i_spacersp_kg
       tare_weight = i_tare_weight2
-**        i_arbpl     = i_arbpl "Work center...
+      i_arbpl     = i_arbpl "Work center...
     TABLES
       saw_data    = saw_data
       detail_return = detail_return
