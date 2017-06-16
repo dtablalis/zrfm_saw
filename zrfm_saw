@@ -1,0 +1,153 @@
+FUNCTION zrfm_saw.
+*"----------------------------------------------------------------------
+*"*"Local Interface:
+*"  IMPORTING
+*"     VALUE(I_BUDAT) TYPE  BUDAT OPTIONAL
+*"     VALUE(I_AUFNR) TYPE  AUFNR OPTIONAL
+*"     VALUE(I_ALLOYLOT) TYPE  ZALLOYLOT OPTIONAL
+*"     VALUE(I_DIE_NUM) TYPE  ANLN1 OPTIONAL
+*"     VALUE(I_WAGON) TYPE  EXIDV OPTIONAL
+*"     VALUE(I_SPACERS1_PC) TYPE  INT4 OPTIONAL
+*"     VALUE(I_SPACERS2_PC) TYPE  INT4 OPTIONAL
+*"     VALUE(I_SPACERS3_PC) TYPE  INT4 OPTIONAL
+*"     VALUE(I_SPACERS4_PC) TYPE  INT4 OPTIONAL
+*"     VALUE(I_SPACER_PAPER) TYPE  INT4 OPTIONAL
+*"     VALUE(I_WEIGHT_PER_M) TYPE  ZWEIGHT_PER_M OPTIONAL
+*"     VALUE(I_LENGTH) TYPE  ZLENGTH OPTIONAL
+*"     VALUE(I_PCS) TYPE  ZPC OPTIONAL
+*"     VALUE(I_SMAP) TYPE  ZSMAP OPTIONAL
+*"     VALUE(I_WEIGHT_T) TYPE  ZZ_WEIGHT_WM_TH OPTIONAL
+*"     VALUE(I_WEIGHT) TYPE  ZZ_WEIGHT_WM OPTIONAL
+*"     VALUE(I_TARE_WEIGHT) TYPE  ZTARE_WEIGHT OPTIONAL
+*"     VALUE(I_LOGRP) TYPE  LOHNGRP OPTIONAL
+*"     VALUE(I_SHIFT_G) TYPE  ZSHIFT_G OPTIONAL
+*"     VALUE(I_SHIFT_G_QC) TYPE  ZSHIFT_G OPTIONAL
+*"     VALUE(I_ALLOYLOT2) TYPE  CHAR10 OPTIONAL
+*"     VALUE(I_NET_WEIGHT) TYPE  ZZ_NET_WEIGHT OPTIONAL
+*"     VALUE(I_SPACERS1_KG) TYPE  INT4 OPTIONAL
+*"     VALUE(I_SPACERS2_KG) TYPE  INT4 OPTIONAL
+*"     VALUE(I_SPACERS3_KG) TYPE  INT4 OPTIONAL
+*"     VALUE(I_SPACERS4_KG) TYPE  INT4 OPTIONAL
+*"     VALUE(I_SPACERSP_KG) TYPE  INT4 OPTIONAL
+*"     VALUE(I_TARE_WEIGHT2) TYPE  ZTARE_WEIGHT OPTIONAL
+*"  EXPORTING
+*"     VALUE(E_CARD) TYPE  ZCARD_NO
+*"     VALUE(E_AUFNR_NEXT) TYPE  AUFNR
+*"  TABLES
+*"      DETAIL_RETURN STRUCTURE  BAPI_CORU_RETURN OPTIONAL
+*"      FAILED_TAB STRUCTURE  ZCONF_SAW_B_F OPTIONAL
+*"----------------------------------------------------------------------
+  DATA: saw_data TYPE TABLE OF zconf_saw_b WITH HEADER LINE.
+  DATA: lv_invnr like ZANLKL-invnr.
+  data: lv_count type i.
+
+  clear lv_count.
+  select count(*) into lv_count
+                  from afpo where aufnr = i_aufnr.
+  if lv_count = 0.
+    DETAIL_RETURN-type = 'E'.
+    DETAIL_RETURN-id = 'RU'.
+    DETAIL_RETURN-number = '002'.
+    DETAIL_RETURN-message = 'Order & not found.Check entry'.
+    replace '&' with i_aufnr into DETAIL_RETURN-message.
+    append DETAIL_RETURN.
+    exit.
+  endif.
+
+  CLEAR: saw_data, saw_data[].
+  saw_data-aufnr = i_aufnr.
+  saw_data-alloylot = i_alloylot.
+  saw_data-die_num = i_die_num.
+  "remove leading zeros
+  CALL FUNCTION 'CONVERSION_EXIT_ALPHA_OUTPUT'
+    EXPORTING
+      INPUT  = i_wagon
+    IMPORTING
+      OUTPUT = saw_data-wagon.
+**  saw_data-wagon = i_wagon.
+  saw_data-spacers1_pc = i_spacers1_pc.
+  saw_data-spacers2_pc = i_spacers2_pc.
+  saw_data-spacers3_pc = i_spacers3_pc.
+  saw_data-spacers4_pc = i_spacers4_pc.
+  saw_data-spacer_paper = i_spacer_paper.
+  saw_data-weight_per_m = i_weight_per_m.
+  saw_data-length = i_length.
+  saw_data-pcs = i_pcs.
+  saw_data-smap = i_smap.
+  saw_data-weight_t = i_weight_t.
+  saw_data-weight = i_weight.
+  saw_data-tare_weight = i_tare_weight.
+  saw_data-i_logrp = i_logrp.
+  saw_data-i_shift_g = i_shift_g.
+  saw_data-i_shift_g_qc = i_shift_g_qc.
+  saw_data-i_alloylot = i_alloylot2.
+  clear lv_invnr.
+  select single invnr into lv_invnr
+                    from ZANLKL where anln1 = i_die_num.
+  if sy-subrc <> 0 .
+    CALL FUNCTION 'CONVERSION_EXIT_ALPHA_INPUT'
+      EXPORTING
+        input         = i_die_num
+     IMPORTING
+       OUTPUT        = i_die_num
+              .
+    select single invnr into lv_invnr
+                    from ZANLKL where anln1 = i_die_num.
+    if sy-subrc = 0 .
+      saw_data-mitra = lv_invnr .
+    endif.
+  else.
+    saw_data-mitra = lv_invnr ."i_mitra.
+  endif.
+  saw_data-net_weight = i_net_weight.
+  APPEND saw_data.
+
+  CALL FUNCTION 'ZCONF_UPD_SAW_DATA'
+    EXPORTING
+      budat       = i_budat
+      failed      = space
+      spacers1_kg = i_spacers1_kg
+      spacers2_kg = i_spacers2_kg
+      spacers3_kg = i_spacers3_kg
+      spacers4_kg = i_spacers4_kg
+      spacersp_kg = i_spacersp_kg
+      tare_weight = i_tare_weight2
+**        i_arbpl     = i_arbpl "Work center...
+    TABLES
+      saw_data    = saw_data
+      detail_return = detail_return
+      failed_tab = failed_tab.
+
+
+  read table detail_return with key type = 'E'.
+  if sy-subrc <> 0 and detail_return[] is not initial.
+    CALL FUNCTION 'ZCARD_NO_CREATE'
+      EXPORTING
+        aufnr          = i_aufnr
+        wagon_no       = saw_data-wagon
+        budat          = i_budat
+        I_SHIFT        = i_logrp
+        I_MITRA        = saw_data-mitra
+     IMPORTING
+       E_CARD         = e_card
+              .
+     IF i_aufnr NE ' '.
+        CALL FUNCTION 'ZNEXT_ORDER'
+           EXPORTING
+             i_aufnr = i_aufnr
+           IMPORTING
+             e_aufnr = e_aufnr_next.
+     endif.
+
+  endif.
+
+  CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'
+   EXPORTING
+     WAIT          = 'X'
+*   IMPORTING
+*     RETURN        =
+            .
+  "If no error exist then return the card No
+
+
+ENDFUNCTION.
